@@ -1,8 +1,3 @@
-#installation 
-#add packages to the requiremnts file liek torch kaggle hub
-#######
-
-
 import torch
 import torch.nn as nn
 from torchvision import transforms
@@ -12,45 +7,71 @@ import numpy as np
 import os
 import streamlit as st
 import zipfile
-
-#import data set from the drive 
-
 import sys
 import requests
 import kagglehub
-     
+
+# Declare global variables
+global data_set_path
+global device
+global loaded_model
+global test_dataset
+global user_test_transform
+
+# Downloading the dataset
 def download_dataset():
+    global data_set_path  # Make sure to use the global variable
     path = kagglehub.dataset_download("masoudnickparvar/brain-tumor-mri-dataset")
     print("Path to dataset files:", path)
-    st.write("File downloaded successfully.")
-    # st.write(path)
-    Prepare_model(path)
     
-    # extract_dataset(path=path)
+    data_set_path = path
+    Prepare_model(path)  # Ensure model is prepared after dataset download
 
+def make_UI():
+    label_to_openFile = 'Upload the X Ray Image'
+    uploaded_file = st.file_uploader("Choose an X-Ray image file", type=["jpg", "jpeg", "png"])
+    
+    if uploaded_file is not None:
+        image = Image.open(uploaded_file)
+        st.image(image, caption="Uploaded Image", use_column_width=True)
+        st.write("File path:", uploaded_file.name)
+        
+        if st.button("Predict the tumor"):
+            Predict_Tumer_v2(uploaded_file)
 
+    else:
+        st.write("Please upload an image file.")
 
-# Streamlit UI
+def Predict_Tumer_v2(user_image):
+    global user_test_transform
 
-st.title("Brain Tumor Detection")
+    st.write("Predicting the tumor")
+    st.write(f"Dataset path: {data_set_path}")  # Display dataset path
+    
+    # Convert the uploaded image to a tensor using the transformation pipeline
+    image = Image.open(user_image).convert('RGB')  # Open and convert image to RGB
+    image = user_test_transform(image).unsqueeze(0).to(device)  # Apply transformation and add batch dimension
+    
+    # Perform inference
+    with torch.no_grad():
+        output = loaded_model(image)  # Pass the image through the model
+        _, predicted = torch.max(output.data, 1)  # Get the predicted class
 
+    predicted_label = test_dataset.classes[predicted.item()]  # Map the predicted index to class name
+    st.write(f"Predicted label: {predicted_label}")
+
+# Extract dataset from ZIP file
 def extract_dataset(path):
-    with zipfile.ZipFile(path,"r") as zip_ref:
+    with zipfile.ZipFile(path, "r") as zip_ref:
         zip_ref.extractall("BrainTumerDataSet")
-    st.write("data-set extracted")
-    
-def Prepare_model(dataset_path):
 
-    
+def Prepare_model(dataset_path):
+    global device, loaded_model, test_dataset,user_test_transform  # Declare as global to use in Predict_Tumer
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Define transforms for the testing dataset
-    test_transform = transforms.Compose([
-        transforms.Resize((224, 224)),
-        transforms.ToTensor(),
-    ])
+    test_transform = transforms.Compose([transforms.Resize((224, 224)), transforms.ToTensor()])
 
-    # Custom Dataset class for loading brain tumor data
     class BrainTumorDataset(Dataset):
         def __init__(self, root_dir, transform=None):
             self.root_dir = root_dir
@@ -73,17 +94,13 @@ def Prepare_model(dataset_path):
             img_path = self.image_paths[idx]
             image = Image.open(img_path).convert('RGB')
             label = self.labels[idx]
-
             if self.transform:
                 image = self.transform(image)
-
             return image, label
 
     model_path = 'trained_model.pth'
     state_dict = torch.load(model_path, map_location=device)
 
-
-    # Define your model architecture
     class CNNModel(nn.Module):
         def __init__(self):
             super(CNNModel, self).__init__()
@@ -103,44 +120,15 @@ def Prepare_model(dataset_path):
             x = self.fc2(x)
             return x
 
-
-
-
-    # Instantiate your model
     model = CNNModel().to(device)
-
-    # Load state_dict into your model
     model.load_state_dict(state_dict)
-    model.eval()  # Set the model to evaluation mode
-
-    # Create dataset instance for testing
-    test_dataset = BrainTumorDataset(root_dir=dataset_path+'/Testing', transform=test_transform)
-
-    # Randomly select 10 images from the test set
-    num_images = 20
-    random_indices = np.random.choice(len(test_dataset), num_images, replace=False)
-
-
-    print("Actual Label | Predicted Label")
-    print("-----------------------------")
-    st.write("Actual Label | Predicted Label")
-    st.write("-----------------------------")
-
-    # Perform inference on each selected image
-    for idx in random_indices:
-        image, label = test_dataset[idx]
-        image = image.unsqueeze(0).to(device)  # Add batch dimension and move to device
-        with torch.no_grad():
-            output = model(image)
-            _, predicted = torch.max(output.data, 1)
-
-        actual_label = test_dataset.classes[label]
-        predicted_label = test_dataset.classes[predicted.item()]
-
-        print(f"{actual_label:12} | {predicted_label:14}")
-        st.write(f"{actual_label:12} | {predicted_label:14}")
-        
+    model.eval()
+    
+    test_dataset = BrainTumorDataset(root_dir=os.path.join(dataset_path, 'Testing'), transform=test_transform)
+    loaded_model = model  # Assign model for use in predictions
+    user_test_transform = test_transform
+    st.write("Model is ready for prediction")
 
 if __name__ == "__main__":
     download_dataset()
-    # extract_dataset()
+    make_UI()
