@@ -7,7 +7,7 @@ from PIL import Image
 # Load the model
 @st.cache_resource
 def load_model():
-    model_path = "path_to_your_model.pth"  # Update with the correct model file path
+    model_path = "trained_model.pth"  # Update with the correct model file path
     model = torch.load(model_path, map_location=torch.device('cpu'))
     model.eval()
     return model
