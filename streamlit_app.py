@@ -1,7 +1,5 @@
 #installation 
-!pip insatall torch
-
-
+#add packages to the requiremnts file liek torch kaggle hub
 #######
 
 
