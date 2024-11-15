@@ -33,20 +33,18 @@ def make_UI():
     
     if uploaded_file is not None:
         image = Image.open(uploaded_file)
-        st.image(image, caption="Uploaded Image", use_column_width=True)
-        st.write("File path:", uploaded_file.name)
+        st.image(image, caption="Uploaded Image", use_container_width =True)
+        # st.write("File path:", uploaded_file.name)
         
         if st.button("Predict the tumor"):
             Predict_Tumer_v2(uploaded_file)
 
     else:
-        st.write("Please upload an image file.")
+        st.write("Please upload an Brain X-Ray file.")
 
 def Predict_Tumer_v2(user_image):
-    global user_test_transform
-
     st.write("Predicting the tumor")
-    st.write(f"Dataset path: {data_set_path}")  # Display dataset path
+    # st.write(f"Dataset path: {data_set_path}")  # Display dataset path
     
     # Convert the uploaded image to a tensor using the transformation pipeline
     image = Image.open(user_image).convert('RGB')  # Open and convert image to RGB
@@ -58,7 +56,7 @@ def Predict_Tumer_v2(user_image):
         _, predicted = torch.max(output.data, 1)  # Get the predicted class
 
     predicted_label = test_dataset.classes[predicted.item()]  # Map the predicted index to class name
-    st.write(f"Predicted label: {predicted_label}")
+    st.write(f"Predicted Tumer : {predicted_label}")
 
 # Extract dataset from ZIP file
 def extract_dataset(path):
@@ -127,8 +125,10 @@ def Prepare_model(dataset_path):
     test_dataset = BrainTumorDataset(root_dir=os.path.join(dataset_path, 'Testing'), transform=test_transform)
     loaded_model = model  # Assign model for use in predictions
     user_test_transform = test_transform
-    st.write("Model is ready for prediction")
+    # st.write("Model is ready for prediction")
 
 if __name__ == "__main__":
+    st.title("Brain Tumer Dectction Model")
+
     download_dataset()
     make_UI()
